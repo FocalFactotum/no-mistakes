@@ -306,7 +306,7 @@ Choose how much of the generated Risk, Testing, and Pipeline tail is visible aft
 | Type | `string` |
 | Values | `full`, `collapsed`, `minimal` |
 | Default | `full` (missing or empty also preserves the default) |
-| Trust | This value comes from the trusted default branch regardless of `allow_repo_commands`, or from a matching machine-local [`repository_overrides`](/no-mistakes/reference/global-config/#machine-local-pr-publication-defaults) entry when the trusted value is unset |
+| Trust | A non-empty trusted default-branch value wins regardless of `allow_repo_commands`, then a matching machine-local [`repository_overrides`](/no-mistakes/reference/global-config/#machine-local-pr-publication-defaults) entry, then global [`pr.appendix`](/no-mistakes/reference/global-config/#prappendix), then built-in `full`. An unset or empty value inherits the next layer; the pushed branch cannot choose this mode. |
 
 `full` is today's body: `## Risk Assessment`, `## Testing`, and `## Pipeline` follow the narrative, in that order.
 
