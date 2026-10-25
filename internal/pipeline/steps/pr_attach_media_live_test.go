@@ -45,9 +45,9 @@ func TestPRMediaOptOutWithRealGH(t *testing.T) {
 	evidence := os.Getenv("NM_ATTACH_MEDIA_EVIDENCE")
 
 	for _, tc := range []struct {
-		name string
+		name          string
 		store, attach bool
-		repoOverride bool
+		repoOverride  bool
 	}{
 		{name: "opt-out-with-evidence-branch", store: true},
 		{name: "opt-out-with-local-evidence"},
@@ -107,7 +107,7 @@ func TestPRMediaOptOutWithRealGH(t *testing.T) {
 				remoteState = gitCmd(t, remote, "ls-tree", "-r", "--name-only", tip)
 				for _, artifact := range artifacts {
 					name := filepath.Base(artifact.Path)
-					want := "https://github.com/example/widgets/blob/"+tip+"/.no-mistakes/evidence/feature/add-login/"+name
+					want := "https://github.com/example/widgets/blob/" + tip + "/.no-mistakes/evidence/feature/add-login/" + name
 					if !strings.Contains(markdown, want) {
 						t.Errorf("missing commit-pinned link for %s: %s", name, markdown)
 					}
