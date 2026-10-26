@@ -51,8 +51,8 @@ func InstallUserWithReport() (InstallReport, error) {
 // follows such links transparently, including when the symlinked target dir does
 // not exist yet (a plain os.MkdirAll would fail with "file exists" on a dangling
 // symlink). Both logical bases stay readable afterward via the link. Individual
-// skill-directory symlinks are externally managed and never overwritten; their
-// SKILL.md must already be readable. Use InstallWithReport to report those paths.
+// skill-directory symlinks are externally managed and never overwritten.
+// Use InstallWithReport to report those paths.
 func Install(root string) ([]string, error) {
 	report, err := InstallWithReport(root)
 	return report.Written, err
@@ -73,9 +73,6 @@ func InstallWithReport(root string) (InstallReport, error) {
 		}
 		if err == nil && info.Mode()&os.ModeSymlink != 0 {
 			report.Managed = append(report.Managed, filepath.Join(base, Name))
-			if _, err := os.ReadFile(path); err != nil {
-				return report, fmt.Errorf("externally managed skill %s is not readable: %w", filepath.Join(base, Name), err)
-			}
 			continue
 		}
 		// Resolve parent links, including dangling bases, as before.

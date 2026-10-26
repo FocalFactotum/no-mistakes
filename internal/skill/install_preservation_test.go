@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -97,28 +98,58 @@ func TestInstallPreservesManagedSkills(t *testing.T) {
 	}
 }
 
-func TestInstallRefusesUnreadableManagedSkill(t *testing.T) {
-	for _, missingTarget := range []bool{false, true} {
-		root := t.TempDir()
-		target := filepath.Join(root, "registry")
-		if !missingTarget {
-			mkdirAll(t, target)
-		}
-		mkdirAll(t, filepath.Join(root, ".claude", "skills"))
-		link := filepath.Join(root, ".claude", "skills", Name)
-		symlink(t, target, link)
-		report, err := InstallWithReport(root)
-		if err == nil || !strings.Contains(err.Error(), "not readable") {
-			t.Fatalf("unreadable managed skill error = %v", err)
-		}
-		if len(report.Written) != 0 || len(report.Managed) != 1 {
-			t.Fatalf("unexpected report: %+v", report)
-		}
-		if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
-			t.Fatalf("managed link was changed: %v", err)
-		}
-		if _, err := os.Stat(filepath.Join(target, "SKILL.md")); !os.IsNotExist(err) {
-			t.Fatalf("installer changed unreadable target: %v", err)
+func TestInstallSkipsUnreadableManagedSkills(t *testing.T) {
+	for _, targetState := range []string{"empty", "missing"} {
+		for _, managed := range [][]string{{".claude"}, {".agents"}, {".claude", ".agents"}} {
+			t.Run(targetState+"_"+strings.Join(managed, "_"), func(t *testing.T) {
+				root := t.TempDir()
+				target := filepath.Join(root, "registry")
+				if targetState == "empty" {
+					mkdirAll(t, target)
+				}
+				var wantManaged, wantWritten []string
+				for _, agent := range []string{".claude", ".agents"} {
+					rel := filepath.Join(agent, "skills", Name)
+					if slices.Contains(managed, agent) {
+						mkdirAll(t, filepath.Dir(filepath.Join(root, rel)))
+						symlink(t, target, filepath.Join(root, rel))
+						wantManaged = append(wantManaged, rel)
+					} else {
+						mkdirAll(t, filepath.Join(root, rel))
+						if err := os.WriteFile(filepath.Join(root, rel, "SKILL.md"), []byte("stale"), 0o644); err != nil {
+							t.Fatal(err)
+						}
+						wantWritten = append(wantWritten, filepath.Join(rel, "SKILL.md"))
+					}
+				}
+				for i := 0; i < 2; i++ {
+					report, err := InstallWithReport(root)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !slices.Equal(report.Managed, wantManaged) || !slices.Equal(report.Written, wantWritten) {
+						t.Fatalf("unexpected report: %+v", report)
+					}
+					for _, rel := range wantManaged {
+						if got, err := os.Readlink(filepath.Join(root, rel)); err != nil || got != target {
+							t.Fatalf("managed link was changed: target = %q, error = %v", got, err)
+						}
+					}
+					for _, rel := range wantWritten {
+						data, err := os.ReadFile(filepath.Join(root, rel))
+						if err != nil || string(data) != Markdown() {
+							t.Fatalf("independent copy not refreshed at %s: %v", rel, err)
+						}
+					}
+					if targetState == "missing" {
+						if _, err := os.Lstat(target); !os.IsNotExist(err) {
+							t.Fatalf("installer changed missing target: %v", err)
+						}
+					} else if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+						t.Fatalf("installer changed empty target: entries = %v, error = %v", entries, err)
+					}
+				}
+			})
 		}
 	}
 }
