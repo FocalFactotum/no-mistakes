@@ -28,6 +28,9 @@ func setupIdentityRepo(t *testing.T) {
 		}
 	}
 	home := t.TempDir()
+	// Keep scratch directories outside any enclosing repository even when
+	// TMPDIR is inside a worktree (as in sandboxed pipeline validation).
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(home))
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", home)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
