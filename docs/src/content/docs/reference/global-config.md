@@ -1232,7 +1232,7 @@ The 1,024-byte limit also applies to the rendered line, checked when configurati
 An invalid entry fails configuration loading, and a render failure at commit time leaves the changes unstaged.
 
 Configured attribution trailers are added to Review, Test, Document, and Lint fix commits, operator-authorized repository gate repairs, and CI repair commits. Commits that no single invocation produced get none rather than a guessed agent: the Push step's catch-all commit, a CI repair retried after a protected-path refusal, and rebase or merge commits that an agent writes itself.
-Independently of this setting, correction commits created by the pipeline carry a `Signed-off-by` trailer from the committing Git identity (`git commit -s`). Agent-made correction commits rewritten to conform to commit settings receive the same sign-off. This includes the Push catch-all and retained CI repairs, even without configured attribution trailers.
+The pipeline's [correction commit sign-offs](/no-mistakes/reference/pipeline-steps/#correction-commit-sign-offs) are independent of this setting.
 A per-repo [`commit.trailers`](/no-mistakes/reference/repo-config/#committrailers) list or a matching [`repository_overrides`](#repository_overrides) entry replaces this list rather than extending it; an empty list clears it.
 
 ### pr.appendix
