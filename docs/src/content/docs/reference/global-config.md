@@ -117,6 +117,7 @@ test:
   evidence:
     store_in_repo: false
     attach_media: true
+    compact: true
     dir: .no-mistakes/evidence
     branch: no-mistakes/evidence
     commit_message: "no-mistakes: evidence for {{.Branch}} (run {{.RunID}})"
@@ -1423,12 +1424,17 @@ By default, evidence artifacts are written to `<NM_HOME>/evidence/<run-id>`. On 
 | ----------------------------- | -------- | ------------------------ | -------------------------------------------------------------------------- |
 | `test.evidence.store_in_repo` | `bool`   | `false`                  | Publish test evidence artifacts to the repository's orphan evidence branch |
 | `test.evidence.attach_media`  | `bool`   | `true`                   | Upload image and video evidence to GitHub user-attachments when the PR is rendered |
+| `test.evidence.compact`       | `bool`   | `true`                   | Keep the PR Testing section compact; set `false` for inline previews and expanded details |
 | `test.evidence.dir`           | `string` | `.no-mistakes/evidence`  | Directory prefix inside the evidence branch                                |
 | `test.evidence.branch`        | `string` | `no-mistakes/evidence`   | Name of the orphan evidence branch                                         |
 | `test.evidence.commit_message` | `string` | `no-mistakes: evidence for {{.Branch}} (run {{.RunID}})` | Subject template for evidence-branch commits |
 | `test.evidence.local_root`    | `string` | `<NM_HOME>/evidence`     | Absolute directory where run evidence is written on local disk             |
 | `test.evidence.retention`     | `string` | `336h` (14 days)         | How long a run's evidence survives; `unlimited`/`none`/`off`/`never` or a non-positive duration disables the bound |
 | `test.evidence.max_runs`      | `int`    | `200`                    | How many run directories survive regardless of age; `0` disables the bound |
+
+`compact: true` preserves the compact PR Testing section. Set `compact: false` to opt into inline screenshot/GIF previews, video embeds, visible log/text blocks, individual test-command bullets, and a summary bullet. Both modes retain inspectable artifact links alongside previews when published links are available. This presentation setting does not enable uploads or evidence publication; for commit-pinned inline images, also enable `store_in_repo`.
+
+Non-compact sections are taller and can approach GitHub's PR body size limit sooner, especially with many screenshots. Repository weight is unchanged: with `store_in_repo` enabled, the same artifacts are committed to the evidence branch in either mode. Pipeline steps and their order are unchanged.
 
 The test step always collects evidence outside the worktree, so artifacts never enter the branch under validation.
 On GitHub.com and GitHub Enterprise Cloud, image and video artifacts that pass GitHub's attach rules (png, jpg, jpeg, gif, webp, svg, mp4, mov, webm; images at most 10 MiB and videos at most 100 MiB) are uploaded to GitHub user-attachments when the PR body is rendered, unless `attach_media` is false. Setting `attach_media: false` disables uploads even when `store_in_repo: true`; evidence-branch publication and its commit-pinned links remain enabled.
@@ -1461,7 +1467,7 @@ Reaping runs after each finished run and again at daemon startup. An upgraded da
 
 `local_root` must be an absolute path outside `<NM_HOME>/worktrees`; a relative or managed-worktree path fails daemon startup and prevents new or recovered runs from starting. Because `retention` bounds how long a PR body's local artifact links keep resolving, raise it rather than lowering it if your reviews run long.
 
-The publication fields are global defaults. Repo config can override `store_in_repo`, `attach_media`, `dir`, and `commit_message`; it can override `branch` only through the trusted default-branch copy. `local_root`, `retention`, and `max_runs` are global-only: a repository does not get to name a filesystem path this machine's daemon writes to, or set the retention budget for a directory every repository on the machine shares.
+The publication fields are global defaults. Repo config can override `store_in_repo`, `attach_media`, `compact`, `dir`, and `commit_message`; it can override `branch` only through the trusted default-branch copy. `local_root`, `retention`, and `max_runs` are global-only: a repository does not get to name a filesystem path this machine's daemon writes to, or set the retention budget for a directory every repository on the machine shares.
 
 `test.evidence.retention` and `test.evidence.max_runs` also bound `<NM_HOME>/logs/<run-id>` (per-run step logs), reaped on the same cadence rather than through a second config surface for the same kind of per-run diagnostic artifact.
 
