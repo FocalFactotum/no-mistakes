@@ -68,6 +68,24 @@ func conformAgentCommits(sctx *pipeline.StepContext, stepName types.StepName, re
 		return err
 	}
 
+	// commit-tree has no --signoff option. Shape the message with Git's own
+	// trailer parser so rewritten corrections carry the same sign-off as -s,
+	// and an already signed-off correction remains conforming on a retry.
+	ident, err := stepGitRun(sctx, "var", "GIT_COMMITTER_IDENT")
+	if err != nil {
+		return fmt.Errorf("resolve correction committer: %w", err)
+	}
+	end := strings.LastIndex(ident, ">")
+	if end < 0 {
+		return fmt.Errorf("resolve correction committer: unexpected Git identity")
+	}
+	message, err = stepGitRunInputRaw(sctx, message, "interpret-trailers", "--no-divider", "--if-exists=addIfDifferent", "--if-missing=add", "--trailer", "Signed-off-by: "+ident[:end+1])
+	if err != nil {
+		return fmt.Errorf("sign off correction message: %w", err)
+	}
+
+	message = strings.TrimSpace(message)
+
 	parent, changed := anchor, false
 	published, resolvedPublished := -1, false
 	for i, sha := range chain {
