@@ -1188,7 +1188,7 @@ Fields not set here inherit from global config and then the built-in defaults.
 
 By default, test evidence is written to `<NM_HOME>/evidence/<run-id>`. Where it is stored locally and how long it is kept are global-only settings; see [`test.evidence`](/no-mistakes/reference/global-config/#testevidence).
 For GitHub repositories, set `store_in_repo: true` to also publish it to an orphan evidence branch in the code branch's push-target repository and link the artifacts from the PR body; evidence is never committed to the pushed branch, so it never reaches the default branch.
-`compact: true` keeps the current compact PR Testing section. Set `compact: false` for inline screenshot/GIF previews, video embeds, visible log/text blocks, individual test-command bullets, and a summary bullet. Published artifact links remain alongside previews in both modes; an embed never replaces an inspectable link. This is presentation only, independent of `attach_media` and `store_in_repo`, and does not change pipeline steps or their order.
+`compact: false` opts into expanded PR Testing presentation with inline previews while retaining published artifact links. See [global config](/no-mistakes/reference/global-config/#testevidence) for rendering details and publication requirements.
 
 Non-compact Testing sections are taller and can approach GitHub's PR body size limit sooner. Repository weight is unchanged: `store_in_repo` publishes the same artifacts to the evidence branch either way.
 
