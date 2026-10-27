@@ -3,6 +3,7 @@ package steps
 import (
 	"testing"
 
+	"github.com/kunchenguid/no-mistakes/internal/agent"
 	"github.com/kunchenguid/no-mistakes/internal/config"
 	"github.com/kunchenguid/no-mistakes/internal/types"
 )
@@ -18,6 +19,47 @@ func TestRewrittenCorrectionSignsOffWithCommittingIdentity(t *testing.T) {
 	}
 	if got, want := gitTrailers(t, dir), "Signed-off-by: Correction Committer <corrections@example.com>"; got != want {
 		t.Fatalf("rewritten commit trailers = %q, want %q", got, want)
+	}
+}
+
+func TestRewrittenCorrectionSignoffIgnoresTrailerConfig(t *testing.T) {
+	t.Parallel()
+	for _, configured := range []bool{false, true} {
+		name := "without-attribution"
+		if configured {
+			name = "with-attribution-and-signoff"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var trailers []string
+			want := "Signed-off-by: test <test@test.com>"
+			if configured {
+				trailers = []string{"Assisted-by: no-mistakes", want}
+				want = "Assisted-by: no-mistakes\n" + want
+			}
+			sctx, dir, anchor := agentCommitContext(t, trailers)
+			agentCommit(t, dir, "agent.txt", "fix: repair widget")
+			gitCmd(t, dir, "config", "trailer.Signed-off-by.key", "Acked-by")
+			gitCmd(t, dir, "config", "trailer.Signed-off-by.cmd", "printf replaced")
+			gitCmd(t, dir, "config", "trailer.separators", "=")
+			gitCmd(t, dir, "config", "trailer.where", "start")
+			producer := &agent.Result{Provider: "claude"}
+			if _, err := commitAgentFixesWithResult(sctx, types.StepReview, "repair widget", "fallback", producer); err != nil {
+				t.Fatal(err)
+			}
+			// Read the actual message independently of the hostile trailer parser settings.
+			if got := fullMessage(t, dir, "HEAD"); got != "no-mistakes(review): repair widget\n\n"+want {
+				t.Fatalf("rewritten message = %q, want literal sign-off alongside configured trailers %q", got, want)
+			}
+			head := gitCmd(t, dir, "rev-parse", "HEAD")
+			sctx.Run.HeadSHA = anchor
+			if _, err := commitAgentFixesWithResult(sctx, types.StepReview, "repair widget", "fallback", producer); err != nil {
+				t.Fatal(err)
+			}
+			if got := gitCmd(t, dir, "rev-parse", "HEAD"); got != head {
+				t.Fatalf("conforming correction rewritten on retry: %s, want %s", got, head)
+			}
+		})
 	}
 }
 
