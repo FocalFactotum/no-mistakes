@@ -4,7 +4,50 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/kunchenguid/no-mistakes/internal/scm"
 )
+
+func TestGetReviewCommentsSeparateWebHost(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, project, apiHost, webURL string
+		configExit                     int
+		wantError                      bool
+	}{
+		{name: "configured web host", project: "group/sub/project", apiHost: "example.com", webURL: "https://example.com/group/sub/project/-/merge_requests/42"},
+		{name: "derived project", apiHost: "example.com", webURL: "https://example.com/group/sub/project/-/merge_requests/42"},
+		{name: "remote host", project: "group/sub/project", webURL: "https://git.example.com/group/sub/project/-/merge_requests/42"},
+		{name: "unrelated host", project: "group/sub/project", apiHost: "example.com", webURL: "https://other.example/group/sub/project/-/merge_requests/42", wantError: true},
+		{name: "different project", project: "group/sub/project", apiHost: "example.com", webURL: "https://example.com/group/other/-/merge_requests/42", wantError: true},
+		{name: "missing config", project: "group/sub/project", configExit: 1, webURL: "https://example.com/group/sub/project/-/merge_requests/42", wantError: true},
+		{name: "empty config", project: "group/sub/project", webURL: "https://example.com/group/sub/project/-/merge_requests/42", wantError: true},
+		{name: "malformed config", project: "group/sub/project", apiHost: "https://example.com", webURL: "https://example.com/group/sub/project/-/merge_requests/42", wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			host := New(gitlabTestCmdFactory(map[string]gitlabTestResponse{
+				"glab config get api_host --host git.example.com --global": {stdout: tc.apiHost, code: tc.configExit},
+				"glab api --paginate projects/group%2Fsub%2Fproject/merge_requests/42/discussions?per_page=100 --hostname git.example.com": {
+					stdout: `[{"id":"d1","notes":[{"id":7,"body":"Bot finding","resolvable":true,"author":{"username":"greptileai"}}]}]`,
+				},
+			}), nil, "git.example.com", tc.project)
+			comments, err := host.GetReviewComments(context.Background(), &scm.PR{Number: "42", URL: tc.webURL})
+			if tc.wantError {
+				if err == nil || len(comments) != 0 {
+					t.Fatalf("GetReviewComments() = %+v, %v; want refusal", comments, err)
+				}
+				return
+			}
+			if err != nil || len(comments) != 1 {
+				t.Fatalf("GetReviewComments() = %+v, %v; want one bot finding", comments, err)
+			}
+			if comments[0].ID != "7" || comments[0].URL != tc.webURL+"#note_7" {
+				t.Fatalf("unexpected comment: %+v", comments[0])
+			}
+		})
+	}
+}
 
 func TestFindPRSeparateWebHost(t *testing.T) {
 	t.Parallel()
